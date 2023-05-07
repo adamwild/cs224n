@@ -115,14 +115,19 @@ def negSamplingLossAndGradient(
     indices = [outsideWordIdx] + negSampleWordIndices
 
     ### YOUR CODE HERE (~10 Lines)
-    sigmo_u_o = sigmoid(np.dot(outsideVectors[outsideWordIdx].T, centerWordVec))
-    dots_uws_vc = [sigmoid(-np.dot(outsideVectors[indice].T, centerWordVec)) for indice in negSampleWordIndices]
     
-    loss = -np.log(sigmo_u_o) - sum(np.log(dots_uws_vc))
+    index_count = np.array([indices.count(k) for k in range(len(outsideVectors))]).reshape((len(outsideVectors), 1))
+    ind2sigmoid = {indice: sigmoid(-np.dot(outsideVectors[indice].T, centerWordVec)) for indice in set(negSampleWordIndices)}
+    ind2sigmoid[outsideWordIdx] = sigmoid(np.dot(outsideVectors[outsideWordIdx].T, centerWordVec))
     
-    gradCenterVec = -(1-sigmo_u_o)*outsideVectors[outsideWordIdx]
-    gradCenterVec += sum([(1-dots_uws_vc[k])*outsideVectors[negSampleWordIndices[k]] for k in range(K)])
-
+    loss =- sum([index_count[idx]*np.log(ind2sigmoid[idx]) for idx in ind2sigmoid])
+    gradCenterVec = -(1-ind2sigmoid[outsideWordIdx])*outsideVectors[outsideWordIdx] + sum([index_count[idx]*(1-ind2sigmoid[idx])*outsideVectors[idx] for idx in set(negSampleWordIndices)])
+    
+    gradOutsideVecs = np.zeros_like(outsideVectors)
+    gradOutsideVecs[outsideWordIdx] = -(1-ind2sigmoid[outsideWordIdx])*centerWordVec
+    for idx in set(negSampleWordIndices):
+        gradOutsideVecs[idx] = index_count[idx]*(1-ind2sigmoid[idx])*centerWordVec
+            
     ### Please use your implementation of sigmoid in here.
 
     ### END YOUR CODE
